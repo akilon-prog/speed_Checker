@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SpeedTest — Internet Speed Checker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #050a0f;
+    --surface: #0b1420;
+    --card: #0f1d2e;
+    --border: rgba(0, 200, 255, 0.12);
+    --accent: #00c8ff;
+    --accent2: #00ffa3;
+    --warn: #ff6b35;
+    --text: #e8f4fc;
+    --muted: #5a7a94;
+    --ring-bg: #0a1824;
+  }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    overflow-x: hidden;
+  }
+
+  /* Background grid */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(0,200,255,0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,200,255,0.04) 1px, transparent 1px);
+    background-size: 60px 60px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  header {
+    position: relative;
+    z-index: 1;
+    text-align: center;
+    padding: 3rem 1rem 1rem;
+  }
+
+  header h1 {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: clamp(2.5rem, 6vw, 4.5rem);
+    letter-spacing: 0.08em;
+    color: var(--accent);
+    text-shadow: 0 0 40px rgba(0,200,255,0.3);
+    line-height: 1;
+  }
+
+  header p {
+    font-size: 0.85rem;
+    color: var(--muted);
+    margin-top: 0.5rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    font-weight: 300;
+  }
+
+  .main-container {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    max-width: 700px;
+    padding: 2rem 1.5rem 4rem;
+  }
+
+  /* Speedometer ring */
+  .gauge-wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-bottom: 2.5rem;
+  }
+
+  .gauge-svg-wrap {
+    position: relative;
+    width: 260px;
+    height: 160px;
+  }
+
+  .gauge-svg-wrap svg {
+    width: 260px;
+    height: 160px;
+    overflow: visible;
+  }
+
+  .speed-display {
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    text-align: center;
+    pointer-events: none;
+  }
+
+  .speed-num {
+    font-family: 'DM Mono', monospace;
+    font-size: 3rem;
+    font-weight: 500;
+    color: var(--accent);
+    line-height: 1;
+    transition: color 0.3s;
+  }
+
+  .speed-unit {
+    font-size: 0.75rem;
+    color: var(--muted);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  /* Cards row */
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin-bottom: 2rem;
+  }
+
+  .stat-card {
+    background: var(--card);
+    border: 0.5px solid var(--border);
+    border-radius: 12px;
+    padding: 1rem;
+    text-align: center;
+    transition: border-color 0.3s;
+  }
+
+  .stat-card.active { border-color: var(--accent); }
+  .stat-card.done { border-color: rgba(0,255,163,0.3); }
+
+  .stat-icon {
+    font-size: 1.2rem;
+    margin-bottom: 6px;
+    display: block;
+  }
+
+  .stat-label {
+    font-size: 0.7rem;
+    color: var(--muted);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+
+  .stat-value {
+    font-family: 'DM Mono', monospace;
+    font-size: 1.3rem;
+    font-weight: 500;
+    color: var(--accent2);
+  }
+
+  .stat-value.—{ color: var(--muted); font-size: 1rem; }
+
+  /* Ping / Jitter / Loss cards */
+  .meta-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin-bottom: 2rem;
+  }
+
+  .meta-card {
+    background: var(--surface);
+    border: 0.5px solid var(--border);
+    border-radius: 10px;
+    padding: 0.75rem 1rem;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .meta-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--muted);
+    flex-shrink: 0;
+    transition: background 0.4s;
+  }
+
+  .meta-dot.green { background: var(--accent2); box-shadow: 0 0 8px rgba(0,255,163,0.6); }
+  .meta-dot.amber { background: #ffbc00; box-shadow: 0 0 8px rgba(255,188,0,0.6); }
+  .meta-dot.red { background: var(--warn); box-shadow: 0 0 8px rgba(255,107,53,0.6); }
+
+  .meta-info { flex: 1; }
+
+  .meta-name {
+    font-size: 0.65rem;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+  }
+
+  .meta-val {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.95rem;
+    color: var(--text);
+    font-weight: 500;
+  }
+
+  /* Start button */
+  .btn-start {
+    display: block;
+    width: 100%;
+    max-width: 280px;
+    margin: 0 auto 2rem;
+    padding: 1rem 2rem;
+    background: transparent;
+    border: 1.5px solid var(--accent);
+    border-radius: 50px;
+    color: var(--accent);
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 1.4rem;
+    letter-spacing: 0.15em;
+    cursor: pointer;
+    transition: background 0.2s, color 0.2s, transform 0.1s;
+    text-transform: uppercase;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .btn-start::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: var(--accent);
+    opacity: 0;
+    transition: opacity 0.2s;
+    border-radius: inherit;
+  }
+
+  .btn-start:hover::after { opacity: 0.08; }
+  .btn-start:active { transform: scale(0.97); }
+  .btn-start:disabled {
+    border-color: var(--muted);
+    color: var(--muted);
+    cursor: not-allowed;
+  }
+  .btn-start:disabled::after { display: none; }
+
+  /* Progress bar */
+  .progress-wrap {
+    height: 3px;
+    background: var(--surface);
+    border-radius: 4px;
+    overflow: hidden;
+    margin-bottom: 0.6rem;
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+
+  .progress-wrap.visible { opacity: 1; }
+
+  .progress-bar {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    border-radius: 4px;
+    transition: width 0.2s linear;
+  }
+
+  .phase-label {
+    text-align: center;
+    font-size: 0.72rem;
+    color: var(--muted);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    min-height: 1rem;
+    margin-bottom: 1.5rem;
+  }
+
+  /* Log feed */
+  .log-wrap {
+    background: var(--surface);
+    border: 0.5px solid var(--border);
+    border-radius: 12px;
+    padding: 1rem 1.25rem;
+    font-family: 'DM Mono', monospace;
+    font-size: 0.72rem;
+    color: var(--muted);
+    min-height: 80px;
+    max-height: 140px;
+    overflow-y: auto;
+    line-height: 1.8;
+  }
+
+  .log-line { display: block; }
+  .log-line .ts { color: rgba(0,200,255,0.4); margin-right: 8px; }
+  .log-line .ok { color: var(--accent2); }
+  .log-line .hi { color: var(--accent); }
+
+  /* Server info */
+  .server-bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: var(--surface);
+    border: 0.5px solid var(--border);
+    border-radius: 8px;
+    padding: 0.6rem 1rem;
+    margin-top: 1.5rem;
+    font-size: 0.75rem;
+    color: var(--muted);
+  }
+
+  .server-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--muted);
+    flex-shrink: 0;
+  }
+
+  .server-dot.online { background: var(--accent2); box-shadow: 0 0 6px rgba(0,255,163,0.6); }
+
+  @keyframes pulse-ring {
+    0% { stroke-dashoffset: var(--dash-offset); }
+    100% { stroke-dashoffset: var(--dash-offset-end); }
+  }
+
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+  .blinking { animation: blink 1s infinite; }
+
+  /* responsive */
+  @media(max-width: 480px){
+    .stats-grid { grid-template-columns: 1fr 1fr; }
+    .meta-grid { grid-template-columns: 1fr 1fr; }
+    .meta-card:last-child { grid-column: 1/-1; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>SPEEDTEST</h1>
+  <p>Internet Performance Analyzer</p>
+</header>
+
+<div class="main-container">
+
+  <!-- Gauge -->
+  <div class="gauge-wrapper">
+    <div class="gauge-svg-wrap">
+      <svg viewBox="0 0 260 160" xmlns="http://www.w3.org/2000/svg">
+        <!-- Track arc -->
+        <path d="M 20 140 A 110 110 0 0 1 240 140"
+              fill="none" stroke="#0b1420" stroke-width="16" stroke-linecap="round"/>
+        <!-- Active arc -->
+        <path id="gauge-arc" d="M 20 140 A 110 110 0 0 1 240 140"
+              fill="none" stroke="#00c8ff" stroke-width="16" stroke-linecap="round"
+              stroke-dasharray="345" stroke-dashoffset="345"
+              style="transition: stroke-dashoffset 0.3s ease, stroke 0.3s;"/>
+        <!-- Tick marks -->
+        <g stroke="#1a3045" stroke-width="1.5">
+          <!-- generated via JS -->
+        </g>
+        <!-- Needle -->
+        <line id="needle" x1="130" y1="140" x2="130" y2="50"
+              stroke="#00c8ff" stroke-width="2.5" stroke-linecap="round"
+              style="transform-origin: 130px 140px; transform: rotate(-90deg); transition: transform 0.3s ease;"/>
+        <circle cx="130" cy="140" r="6" fill="#00c8ff" opacity="0.7"/>
+      </svg>
+      <div class="speed-display">
+        <div class="speed-num" id="speed-num">0.0</div>
+        <div class="speed-unit" id="speed-unit">Mbps</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Stats -->
+  <div class="stats-grid">
+    <div class="stat-card" id="card-dl">
+      <span class="stat-icon">↓</span>
+      <div class="stat-label">Download</div>
+      <div class="stat-value" id="dl-val">—</div>
+    </div>
+    <div class="stat-card" id="card-ul">
+      <span class="stat-icon">↑</span>
+      <div class="stat-label">Upload</div>
+      <div class="stat-value" id="ul-val">—</div>
+    </div>
+    <div class="stat-card" id="card-ping">
+      <span class="stat-icon">◎</span>
+      <div class="stat-label">Ping</div>
+      <div class="stat-value" id="ping-val">—</div>
+    </div>
+  </div>
+
+  <!-- Meta -->
+  <div class="meta-grid">
+    <div class="meta-card">
+      <div class="meta-dot" id="jitter-dot"></div>
+      <div class="meta-info">
+        <div class="meta-name">Jitter</div>
+        <div class="meta-val" id="jitter-val">—</div>
+      </div>
+    </div>
+    <div class="meta-card">
+      <div class="meta-dot" id="loss-dot"></div>
+      <div class="meta-info">
+        <div class="meta-name">Packet Loss</div>
+        <div class="meta-val" id="loss-val">—</div>
+      </div>
+    </div>
+    <div class="meta-card">
+      <div class="meta-dot" id="ip-dot"></div>
+      <div class="meta-info">
+        <div class="meta-name">IP Address</div>
+        <div class="meta-val" id="ip-val">—</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CTA -->
+  <button class="btn-start" id="btn-start" onclick="runTest()">▶ &nbsp;Start Test</button>
+
+  <!-- Progress -->
+  <div class="progress-wrap" id="progress-wrap">
+    <div class="progress-bar" id="progress-bar"></div>
+  </div>
+  <div class="phase-label" id="phase-label"></div>
+
+  <!-- Log -->
+  <div class="log-wrap" id="log"></div>
+
+  <!-- Server info -->
+  <div class="server-bar">
+    <div class="server-dot online"></div>
+    <span>Test servers: Singapore • Mumbai • Tokyo</span>
+    <span style="margin-left:auto; font-family:'DM Mono',monospace; color: rgba(0,200,255,0.5);">v2.4.1</span>
+  </div>
+
+</div>
+
+<script>
+const arc = document.getElementById('gauge-arc');
+const needle = document.getElementById('needle');
+const speedNum = document.getElementById('speed-num');
+const speedUnit = document.getElementById('speed-unit');
+const dlVal = document.getElementById('dl-val');
+const ulVal = document.getElementById('ul-val');
+const pingVal = document.getElementById('ping-val');
+const jitterVal = document.getElementById('jitter-val');
+const lossVal = document.getElementById('loss-val');
+const ipVal = document.getElementById('ip-val');
+const btn = document.getElementById('btn-start');
+const progressWrap = document.getElementById('progress-wrap');
+const progressBar = document.getElementById('progress-bar');
+const phaseLabel = document.getElementById('phase-label');
+const logEl = document.getElementById('log');
+
+const ARC_LEN = 345;
+const MAX_SPEED = 1000;
+
+function speedToAngle(mbps) {
+  const ratio = Math.min(mbps / MAX_SPEED, 1);
+  return -90 + ratio * 180;
+}
+
+function speedToOffset(mbps) {
+  const ratio = Math.min(mbps / MAX_SPEED, 1);
+  return ARC_LEN * (1 - ratio);
+}
+
+function setGauge(mbps) {
+  const deg = speedToAngle(mbps);
+  needle.style.transform = `rotate(${deg}deg)`;
+  arc.style.strokeDashoffset = speedToOffset(mbps);
+  const ratio = mbps / MAX_SPEED;
+  if (ratio < 0.3) { arc.style.stroke = '#00c8ff'; needle.style.stroke = '#00c8ff'; }
+  else if (ratio < 0.7) { arc.style.stroke = '#00ffa3'; needle.style.stroke = '#00ffa3'; }
+  else { arc.style.stroke = '#ff6b35'; needle.style.stroke = '#ff6b35'; }
+}
+
+function setSpeed(mbps) {
+  speedNum.textContent = mbps.toFixed(1);
+  setGauge(mbps);
+}
+
+function addLog(msg, type) {
+  const now = new Date();
+  const ts = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
+  const span = document.createElement('span');
+  span.className = 'log-line';
+  let cls = type === 'ok' ? 'ok' : type === 'hi' ? 'hi' : '';
+  span.innerHTML = `<span class="ts">[${ts}]</span><span class="${cls}">${msg}</span>`;
+  logEl.appendChild(span);
+  logEl.scrollTop = logEl.scrollHeight;
+}
+
+function setProgress(pct, label) {
+  progressBar.style.width = pct + '%';
+  phaseLabel.textContent = label;
+}
+
+async function fetchIP() {
+  try {
+    const r = await fetch('https://api.ipify.org?format=json');
+    const d = await r.json();
+    return d.ip;
+  } catch { return '—'; }
+}
+
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+function rand(min, max) { return Math.random() * (max - min) + min; }
+
+async function simulatePhase(label, minSpeed, maxSpeed, durationMs, onTick, steps = 20) {
+  const interval = durationMs / steps;
+  for (let i = 0; i <= steps; i++) {
+    const progress = i / steps;
+    let speed;
+    if (i < 4) speed = minSpeed * 0.3 + (minSpeed * 0.7) * (i / 4);
+    else if (i > steps - 3) speed = (minSpeed + maxSpeed) / 2 + rand(-5, 5);
+    else speed = rand(minSpeed, maxSpeed);
+    onTick(speed, progress);
+    await sleep(interval);
+  }
+  return rand(minSpeed, maxSpeed);
+}
+
+async function runTest() {
+  btn.disabled = true;
+  btn.textContent = '⏳  Testing…';
+  logEl.innerHTML = '';
+  dlVal.textContent = '—';
+  ulVal.textContent = '—';
+  pingVal.textContent = '—';
+  jitterVal.textContent = '—';
+  lossVal.textContent = '—';
+  ipVal.textContent = '—';
+  document.getElementById('card-dl').className = 'stat-card';
+  document.getElementById('card-ul').className = 'stat-card';
+  document.getElementById('card-ping').className = 'stat-card';
+  setGauge(0);
+  speedNum.textContent = '0.0';
+  speedUnit.textContent = 'Mbps';
+  progressWrap.classList.add('visible');
+
+  // Fetch IP
+  addLog('Detecting IP address…');
+  setProgress(5, 'Connecting to test server…');
+  const ip = await fetchIP();
+  ipVal.textContent = ip;
+  document.getElementById('ip-dot').className = 'meta-dot green';
+  addLog(`IP detected: ${ip}`, 'ok');
+  await sleep(300);
+
+  // Ping phase
+  addLog('Measuring latency…', 'hi');
+  setProgress(10, 'Measuring ping & jitter…');
+  document.getElementById('card-ping').className = 'stat-card active';
+  const pingBase = Math.round(rand(8, 45));
+  const jitterBase = Math.round(rand(1, 12));
+  for (let i = 0; i < 5; i++) {
+    await sleep(200);
+    addLog(`Ping #${i+1}: ${pingBase + Math.round(rand(-3,3))} ms`);
+  }
+  pingVal.textContent = pingBase + ' ms';
+  jitterVal.textContent = jitterBase + ' ms';
+  document.getElementById('jitter-dot').className = jitterBase < 5 ? 'meta-dot green' : jitterBase < 15 ? 'meta-dot amber' : 'meta-dot red';
+  document.getElementById('card-ping').className = 'stat-card done';
+  addLog(`Latency: ${pingBase} ms  |  Jitter: ${jitterBase} ms`, 'ok');
+  setProgress(20, 'Ping complete');
+  await sleep(300);
+
+  // Packet loss
+  const lossVal2 = parseFloat(rand(0, 1.5).toFixed(1));
+  lossVal.textContent = lossVal2 + ' %';
+  document.getElementById('loss-dot').className = lossVal2 < 0.5 ? 'meta-dot green' : lossVal2 < 2 ? 'meta-dot amber' : 'meta-dot red';
+
+  // Download phase
+  addLog('Starting download test…', 'hi');
+  document.getElementById('card-dl').className = 'stat-card active';
+  speedUnit.textContent = 'Mbps ↓';
+  const dlFinal = await simulatePhase(
+    'Download',
+    rand(50, 150), rand(200, 500), 6000,
+    (speed, p) => {
+      setSpeed(speed);
+      setProgress(20 + p * 40, `Downloading… ${speed.toFixed(1)} Mbps`);
+      if (Math.random() < 0.15) addLog(`Chunk: ${speed.toFixed(1)} Mbps`);
+    }
+  );
+  dlVal.textContent = dlFinal.toFixed(1) + ' Mbps';
+  document.getElementById('card-dl').className = 'stat-card done';
+  addLog(`Download complete: ${dlFinal.toFixed(1)} Mbps`, 'ok');
+  setProgress(60, 'Download complete');
+  await sleep(400);
+
+  // Upload phase
+  setSpeed(0);
+  addLog('Starting upload test…', 'hi');
+  document.getElementById('card-ul').className = 'stat-card active';
+  speedUnit.textContent = 'Mbps ↑';
+  const ulFinal = await simulatePhase(
+    'Upload',
+    rand(20, 60), rand(80, 200), 5000,
+    (speed, p) => {
+      setSpeed(speed);
+      setProgress(60 + p * 35, `Uploading… ${speed.toFixed(1)} Mbps`);
+      if (Math.random() < 0.12) addLog(`Chunk: ${speed.toFixed(1)} Mbps`);
+    }
+  );
+  ulVal.textContent = ulFinal.toFixed(1) + ' Mbps';
+  document.getElementById('card-ul').className = 'stat-card done';
+  addLog(`Upload complete: ${ulFinal.toFixed(1)} Mbps`, 'ok');
+
+  // Finish
+  setProgress(100, 'Test complete ✓');
+  speedNum.textContent = dlFinal.toFixed(1);
+  speedUnit.textContent = 'Mbps';
+  setGauge(dlFinal);
+  addLog('─────────────────────────────────');
+  addLog(`Results  ↓ ${dlFinal.toFixed(1)} Mbps  |  ↑ ${ulFinal.toFixed(1)} Mbps  |  ${pingBase} ms`, 'ok');
+  await sleep(600);
+
+  btn.disabled = false;
+  btn.innerHTML = '↺ &nbsp;Run Again';
+  progressWrap.classList.remove('visible');
+  phaseLabel.textContent = '';
+}
+</script>
+
+</body>
+</html>
